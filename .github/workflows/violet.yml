@@ -1,4 +1,4 @@
-name: Violet A13 KSU SUSFS Build
+name: Violet A13 KernelSU NEXT SUSFS
 
 on:
   workflow_dispatch:
@@ -8,15 +8,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # =============================
-      # 1️⃣ Checkout kernel source
-      # =============================
+      # 1️⃣ Checkout source
       - name: Checkout Source
         uses: actions/checkout@v4
 
-      # =============================
-      # 2️⃣ Install build dependencies
-      # =============================
+      # 2️⃣ Install dependencies
       - name: Install Dependencies
         run: |
           sudo apt-get update
@@ -27,36 +23,27 @@ jobs:
             binutils-aarch64-linux-gnu \
             binutils-arm-linux-gnueabi
 
-      # =============================
-      # 3️⃣ Clone Clang toolchain
-      # =============================
+      # 3️⃣ Clone Proton Clang
       - name: Clone Proton Clang
-        run: |
-          git clone --depth=1 https://github.com/kdrag0n/proton-clang clang
+        run: git clone --depth=1 https://github.com/kdrag0n/proton-clang clang
 
-      # =============================
-      # 4️⃣ Add KernelSU (NEXT)
-      # =============================
-      - name: Integrate KernelSU
+      # 4️⃣ Integrate KernelSU NEXT (correct new method)
+      - name: Integrate KernelSU NEXT
         run: |
-          git clone https://github.com/tiann/KernelSU.git KernelSU
+          git clone https://github.com/tiann/KernelSU.git
           cd KernelSU
-          bash setup.sh
+          bash kernel/setup.sh
           cd ..
 
-      # =============================
-      # 5️⃣ Add SUSFS
-      # =============================
+      # 5️⃣ Integrate SUSFS
       - name: Integrate SUSFS
         run: |
           git clone https://github.com/sidex15/susfs4ksu susfs
           cp -r susfs/* .
           rm -rf susfs
 
-      # =============================
       # 6️⃣ Patch defconfig
-      # =============================
-      - name: Enable KSU & SUSFS configs
+      - name: Patch defconfig
         run: |
           DEFCONFIG=arch/arm64/configs/violet-perf_defconfig
 
@@ -66,15 +53,12 @@ jobs:
           grep -q "CONFIG_KALLSYMS_ALL=y" $DEFCONFIG || echo "CONFIG_KALLSYMS_ALL=y" >> $DEFCONFIG
           grep -q "CONFIG_SUSFS=y" $DEFCONFIG || echo "CONFIG_SUSFS=y" >> $DEFCONFIG
 
-      # =============================
       # 7️⃣ Build kernel
-      # =============================
       - name: Build Kernel
         run: |
           export PATH="$GITHUB_WORKSPACE/clang/bin:$PATH"
 
           mkdir -p out
-
           make O=out ARCH=arm64 vendor/violet-perf_defconfig
 
           make -j$(nproc) O=out \
@@ -83,22 +67,18 @@ jobs:
             CROSS_COMPILE=aarch64-linux-gnu- \
             CROSS_COMPILE_ARM32=arm-linux-gnueabi-
 
-      # =============================
-      # 8️⃣ Create flashable AnyKernel3 zip
-      # =============================
+      # 8️⃣ Pack AnyKernel3 zip
       - name: Pack Flashable Zip
         run: |
           git clone --depth=1 https://github.com/osm0sis/AnyKernel3 AnyKernel3
           cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/
           cd AnyKernel3
-          zip -r9 violet-A13-KSU-SUSFS.zip *
+          zip -r9 violet-A13-KSU-NEXT-SUSFS.zip *
 
-      # =============================
       # 9️⃣ Upload artifact
-      # =============================
       - name: Upload Kernel Zip
         uses: actions/upload-artifact@v4
         with:
-          name: violet-A13-KSU-SUSFS
+          name: violet-A13-KSU-NEXT-SUSFS
           path: AnyKernel3/*.zip
           
